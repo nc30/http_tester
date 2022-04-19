@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -59,6 +62,15 @@ func wrap(fnc func(w http.ResponseWriter, r *http.Request) (interface{}, error))
 	}
 }
 
+var port string = ":8080"
+
+func init() {
+	p := os.Getenv("PORT")
+	if p != "" {
+		port = ":" + p
+	}
+}
+
 func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -97,7 +109,23 @@ func main() {
 	})
 
 	r.Get("/info", wrap(func(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-		return nil, nil
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second*5)
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://ipecho.net/plain", nil)
+		if err != nil {
+			return nil, err
+		}
+
+		rr, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		defer rr.Body.Close()
+		z, err := ioutil.ReadAll(rr.Body)
+
+		return string(z), err
 	}))
 
 	r.Get("/sleep/{seconds}", wrap(func(w http.ResponseWriter, r *http.Request) (interface{}, error) {
@@ -131,6 +159,9 @@ func main() {
 		http.Error(w, http.StatusText(s), s)
 	})
 
-	err := http.ListenAndServe(":3000", r)
-	log.Println(err)
+	log.Printf("Listening %s\n", port)
+	err := http.ListenAndServe(port, r)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
