@@ -27,7 +27,7 @@ type responsetype struct {
 	Uri      string
 }
 
-func wrap(fnc func(w http.ResponseWriter, r *http.Request) (interface{}, error)) func(w http.ResponseWriter, r *http.Request) {
+func wrap(fnc func(w http.ResponseWriter, r *http.Request) (interface{}, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		response, err := fnc(w, r)
 		if err != nil {
